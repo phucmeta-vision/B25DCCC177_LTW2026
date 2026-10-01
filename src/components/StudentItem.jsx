@@ -1,4 +1,3 @@
-// Component cháu
 const StudentItem = ({ student, onDelete }) => {
   const { id, name, score, class: className } = student;
 

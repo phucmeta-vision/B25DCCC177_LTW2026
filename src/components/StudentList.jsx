@@ -1,6 +1,5 @@
 import StudentItem from "./StudentItem.jsx";
 
-// Component con
 const StudentList = ({ students, onDelete }) => {
   if (students.length === 0) {
     return <p className="empty">Không có sinh viên nào.</p>;

@@ -1,7 +1,6 @@
 import { useState } from "react";
 import StudentList from "./components/StudentList.jsx";
 
-// Component cha
 const App = () => {
   // Dữ liệu mẫu 
   const [students, setStudents] = useState([
