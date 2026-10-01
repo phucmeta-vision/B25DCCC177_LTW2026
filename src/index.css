@@ -1,0 +1,55 @@
+/* Giao diện tối */
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: #0f172a;
+  color: #e2e8f0;
+  font-family: Arial, sans-serif;
+}
+
+.container {
+  max-width: 800px;
+  margin: 30px auto;
+  padding: 0 12px;
+}
+
+h1 { text-align: center; color: #38bdf8; }
+
+form, .filters, .stats { margin-bottom: 16px; }
+
+input {
+  padding: 8px;
+  margin: 0 6px 6px 0;
+  background: #1e293b;
+  color: #e2e8f0;
+  border: 1px solid #334155;
+  border-radius: 4px;
+}
+input::placeholder { color: #64748b; }
+input:focus { outline: 1px solid #38bdf8; }
+
+.btn {
+  padding: 8px 14px;
+  margin-right: 6px;
+  background: #1e293b;
+  color: #e2e8f0;
+  border: 1px solid #334155;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.btn:hover { background: #334155; }
+.btn.active { background: #0284c7; border-color: #0284c7; color: #fff; }
+.btn-primary { background: #0284c7; border-color: #0284c7; color: #fff; }
+.btn-primary:hover { background: #0369a1; }
+.btn-danger { background: #b91c1c; border-color: #b91c1c; color: #fff; }
+.btn-danger:hover { background: #991b1b; }
+
+.error { color: #f87171; margin-top: 8px; }
+.stats p { margin: 4px 0; }
+.empty { color: #94a3b8; }
+
+table { width: 100%; border-collapse: collapse; background: #1e293b; }
+th, td { border: 1px solid #334155; padding: 10px; text-align: center; }
+th { background: #334155; color: #38bdf8; }
+tr:hover td { background: #273449; }
