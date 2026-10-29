@@ -3,24 +3,37 @@ import { Navigate, useNavigate } from 'react-router-dom';
 import QuestionCard from '../components/QuestionCard';
 import Timer from '../components/Timer';
 import MoneyLadder from '../components/MoneyLadder';
+import Lifelines from '../components/Lifelines';
+import AudienceChart from '../components/AudienceChart';
 import { PRIZES, TIME_PER_QUESTION } from '../data';
-import { calcPrize } from '../utils';
+import { audienceVotes, calcPrize, pickHidden } from '../utils';
 
 const TOTAL = PRIZES.length;
+const DEFAULT_TITLE = 'Ai là triệu phú';
 
-const Game = ({ playerName, questions }) => {
+const Game = ({ playerName, questions, onFinish }) => {
   const navigate = useNavigate();
 
   const [index, setIndex] = useState(0); // câu hiện tại (0-14)
   const [status, setStatus] = useState('answering'); // answering -> locked -> revealed
   const [selected, setSelected] = useState(null);
   const [timeLeft, setTimeLeft] = useState(TIME_PER_QUESTION);
+  const [hidden, setHidden] = useState([]); // đáp án bị 50:50 ẩn
+  const [votes, setVotes] = useState(null); // kết quả hỏi khán giả
+  const [used, setUsed] = useState({ fifty: false, audience: false });
 
   const question = questions[index];
 
-  // Kết thúc lượt chơi: tính tiền rồi sang trang kết quả
+  // Kết thúc lượt chơi: tính tiền, lưu lịch sử, sang trang kết quả
   const finish = (reason, correctCount) => {
     const prize = calcPrize(correctCount, reason);
+    onFinish({
+      id: Date.now(),
+      name: playerName,
+      prize,
+      correctCount,
+      playedAt: new Date().toLocaleString('vi-VN'),
+    });
     navigate('/result', {
       replace: true,
       state: { reason, prize, correctCount, name: playerName },
@@ -65,6 +78,8 @@ const Game = ({ playerName, questions }) => {
           setStatus('answering');
           setSelected(null);
           setTimeLeft(TIME_PER_QUESTION);
+          setHidden([]);
+          setVotes(null);
         }
       }, 2000);
       return () => clearTimeout(id);
@@ -72,10 +87,50 @@ const Game = ({ playerName, questions }) => {
     return undefined;
   }, [status, selected, question, index]);
 
+  // Phím tắt A-D
+  useEffect(() => {
+    const handleKey = (e) => {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const i = ['A', 'B', 'C', 'D'].indexOf(e.key.toUpperCase());
+      if (e.key.length !== 1 || i < 0) return;
+      if (status !== 'answering' || hidden.includes(i)) return;
+      setSelected(i);
+      setStatus('locked');
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [status, hidden]);
+
+  // Tiêu đề tab
+  useEffect(() => {
+    document.title = `Câu ${index + 1}/${TOTAL} – ${playerName}`;
+    return () => {
+      document.title = DEFAULT_TITLE;
+    };
+  }, [index, playerName]);
+
   const handleChoose = (i) => {
     if (status !== 'answering') return;
     setSelected(i);
     setStatus('locked');
+  };
+
+  const handleFifty = () => {
+    if (used.fifty || status !== 'answering') return;
+    setHidden(pickHidden(question.answer));
+    setUsed((u) => ({ ...u, fifty: true }));
+  };
+
+  const handleAudience = () => {
+    if (used.audience || status !== 'answering') return;
+    setVotes(audienceVotes(question.answer, hidden));
+    setUsed((u) => ({ ...u, audience: true }));
+  };
+
+  // Dừng cuộc chơi: nhận tiền của câu vừa trả lời đúng gần nhất
+  const handleQuit = () => {
+    if (status !== 'answering') return;
+    finish('quit', index);
   };
 
   return (
@@ -92,7 +147,18 @@ const Game = ({ playerName, questions }) => {
           question={question}
           status={status}
           selected={selected}
+          hidden={hidden}
           onChoose={handleChoose}
+        />
+
+        {votes && <AudienceChart votes={votes} />}
+
+        <Lifelines
+          used={used}
+          disabled={status !== 'answering'}
+          onFifty={handleFifty}
+          onAudience={handleAudience}
+          onQuit={handleQuit}
         />
       </section>
 
@@ -101,7 +167,7 @@ const Game = ({ playerName, questions }) => {
   );
 };
 
-const Play = ({ playerName, questions, loading, error }) => {
+const Play = ({ playerName, questions, loading, error, onFinish }) => {
   // Chặn vào thẳng trang chơi khi chưa nhập tên
   if (!playerName) return <Navigate to="/" replace />;
   if (loading) return <p className="notice">Đang tải câu hỏi...</p>;
@@ -110,7 +176,7 @@ const Play = ({ playerName, questions, loading, error }) => {
     return <p className="notice error">Ngân hàng câu hỏi cần ít nhất {TOTAL} câu.</p>;
   }
 
-  return <Game playerName={playerName} questions={questions} />;
+  return <Game playerName={playerName} questions={questions} onFinish={onFinish} />;
 };
 
 export default Play;

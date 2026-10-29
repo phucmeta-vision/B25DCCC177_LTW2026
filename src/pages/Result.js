@@ -5,6 +5,7 @@ const TITLES = {
   win: 'Chúc mừng! Bạn đã trở thành triệu phú',
   wrong: 'Rất tiếc, bạn đã trả lời sai',
   timeout: 'Hết giờ!',
+  quit: 'Bạn đã dừng cuộc chơi',
 };
 
 const Result = () => {
