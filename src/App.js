@@ -1,25 +1,66 @@
-import logo from './logo.svg';
+import { useEffect, useState } from 'react';
+import { Routes, Route } from 'react-router-dom';
+import axios from 'axios';
 import './App.css';
 
-function App() {
+import Layout from './components/Layout';
+import QuestionBank from './pages/QuestionBank';
+import QuestionDetail from './pages/QuestionDetail';
+import NotFound from './pages/NotFound';
+
+const App = () => {
+  const [questions, setQuestions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  // Mounting: gọi API lấy câu hỏi (cleanup: hủy request)
+  useEffect(() => {
+    const controller = new AbortController();
+
+    axios
+      .get('/data/questions.json', { signal: controller.signal })
+      .then((res) => {
+        // Nếu file bị đổi tên, dev server trả về HTML thay vì mảng câu hỏi
+        if (!Array.isArray(res.data)) {
+          throw new Error('Dữ liệu không hợp lệ');
+        }
+        setQuestions(res.data);
+        setError('');
+        setLoading(false);
+      })
+      .catch((err) => {
+        if (axios.isCancel(err)) return; // request bị hủy: bỏ qua
+        setError('Không tải được câu hỏi');
+        setLoading(false);
+      });
+
+    return () => controller.abort();
+  }, []);
+
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+    <Routes>
+      <Route path="/" element={<Layout />}>
+        {/* Các trang chưa làm tới: tạm để một thẻ h2 */}
+        <Route index element={<h2>Trang chủ</h2>} />
+        <Route path="play" element={<h2>Màn hình chơi</h2>} />
+        <Route path="result" element={<h2>Kết quả lượt chơi</h2>} />
+        <Route path="history" element={<h2>Lịch sử các lượt chơi</h2>} />
+        <Route
+          path="questions"
+          element={
+            <QuestionBank questions={questions} loading={loading} error={error} />
+          }
+        />
+        <Route
+          path="questions/:id"
+          element={
+            <QuestionDetail questions={questions} loading={loading} error={error} />
+          }
+        />
+        <Route path="*" element={<NotFound />} />
+      </Route>
+    </Routes>
   );
-}
+};
 
 export default App;
