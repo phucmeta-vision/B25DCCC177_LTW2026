@@ -55,7 +55,7 @@ body {
   border-radius: 8px;
 }
 
-h1, h2 {
+h1, h2, h3 {
   margin-top: 0;
 }
 
@@ -89,6 +89,7 @@ th {
 }
 
 input[type="number"],
+input[type="text"],
 select {
   padding: 6px 8px;
   border: 1px solid #8c959f;
@@ -136,4 +137,24 @@ button {
   gap: 16px;
   align-items: center;
   flex-wrap: wrap;
+}
+
+.dist-list {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0 0;
+}
+
+.dist-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.dist-bar {
+  display: inline-block;
+  height: 10px;
+  background-color: #1976d2;
+  border-radius: 2px;
 }
