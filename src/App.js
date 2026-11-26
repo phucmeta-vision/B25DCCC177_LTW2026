@@ -1,28 +1,29 @@
-import React, { useReducer, useEffect, useState, useMemo, useRef } from 'react';
-import { TEAMS, ROUNDS, RESULT_LABELS, formatDiff } from './data';
+import React, { useEffect, useState, useMemo } from 'react';
+import { useSelector, useDispatch } from 'react-redux';
+import { ROUNDS, RESULT_LABELS } from './data';
 import { useFetch } from './hooks/useFetch';
-import { matchesReducer } from './matchesReducer';
+import { selectMatches, setMatches, removeMatch, setGoals } from './features/matchesSlice';
+import { useTheme } from './context/ThemeContext';
+import { useNotice } from './context/NoticeContext';
 import { getTeamName, getResult, isValidGoals, calcStandings, calcMatchStats } from './utils';
+import StandingsTable from './components/StandingsTable';
+import AddMatchForm from './components/AddMatchForm';
+import GoalPlanner from './components/GoalPlanner';
 
 const App = () => {
   const { data, loading, error } = useFetch('/data/matches.json');
-  const [matches, dispatch] = useReducer(matchesReducer, []);
+  const matches = useSelector(selectMatches);
+  const dispatch = useDispatch();
+  const { theme, toggleTheme } = useTheme();
+  const showNotice = useNotice();
+
   const [roundFilter, setRoundFilter] = useState('all');
-
-  const [roundInput, setRoundInput] = useState('1');
-  const [homeInput, setHomeInput] = useState('');
-  const [awayInput, setAwayInput] = useState('');
-  const [homeGoalsInput, setHomeGoalsInput] = useState('');
-  const [awayGoalsInput, setAwayGoalsInput] = useState('');
-  const [errors, setErrors] = useState({});
-
-  const homeSelectRef = useRef(null);
 
   useEffect(() => {
     if (data) {
-      dispatch({ type: 'LOAD', payload: data });
+      dispatch(setMatches(data));
     }
-  }, [data]);
+  }, [data, dispatch]);
 
   const standings = useMemo(() => calcStandings(matches), [matches]);
 
@@ -41,77 +42,23 @@ const App = () => {
 
   const handleGoalsChange = (id, field, rawValue, currentMatch) => {
     if (!isValidGoals(rawValue)) return;
-    const updated = {
-      id,
-      homeGoals: field === 'home' ? rawValue : currentMatch.homeGoals,
-      awayGoals: field === 'away' ? rawValue : currentMatch.awayGoals,
-    };
-    dispatch({ type: 'SET_GOALS', payload: updated });
+    dispatch(
+      setGoals({
+        id,
+        homeGoals: field === 'home' ? rawValue : currentMatch.homeGoals,
+        awayGoals: field === 'away' ? rawValue : currentMatch.awayGoals,
+      })
+    );
   };
 
-  const handleAddSubmit = (e) => {
-    e.preventDefault();
-    const newErrors = {};
-
-    if (!homeInput) {
-      newErrors.home = 'Hãy chọn đội nhà';
-    }
-
-    if (!awayInput) {
-      newErrors.away = 'Hãy chọn đội khách';
-    } else if (homeInput && homeInput === awayInput) {
-      newErrors.away = 'Hai đội phải khác nhau';
-    } else if (homeInput && awayInput) {
-      const hId = Number(homeInput);
-      const aId = Number(awayInput);
-      const played = matches.some(
-        (m) => (m.home === hId && m.away === aId) || (m.home === aId && m.away === hId)
-      );
-      if (played) {
-        newErrors.away = 'Hai đội đã đá với nhau rồi';
-      }
-    }
-
-    const parsedHomeGoals = homeGoalsInput === '' ? NaN : Number(homeGoalsInput);
-    const parsedAwayGoals = awayGoalsInput === '' ? NaN : Number(awayGoalsInput);
-
-    if (!isValidGoals(parsedHomeGoals)) {
-      newErrors.homeGoals = 'Số bàn thắng phải là số nguyên từ 0 đến 20';
-    }
-
-    if (!isValidGoals(parsedAwayGoals)) {
-      newErrors.awayGoals = 'Số bàn thắng phải là số nguyên từ 0 đến 20';
-    }
-
-    setErrors(newErrors);
-
-    if (Object.keys(newErrors).length > 0) return;
-
-    dispatch({
-      type: 'ADD',
-      payload: {
-        round: Number(roundInput),
-        home: Number(homeInput),
-        away: Number(awayInput),
-        homeGoals: parsedHomeGoals,
-        awayGoals: parsedAwayGoals,
-      },
-    });
-
-    setRoundInput('1');
-    setHomeInput('');
-    setAwayInput('');
-    setHomeGoalsInput('');
-    setAwayGoalsInput('');
-    setErrors({});
-    if (homeSelectRef.current) {
-      homeSelectRef.current.focus();
-    }
+  const handleRemove = (match) => {
+    dispatch(removeMatch(match.id));
+    showNotice(`Đã xóa trận ${getTeamName(match.home)} - ${getTeamName(match.away)}`);
   };
 
   if (loading) {
     return (
-      <div className="app">
+      <div className={`app ${theme}`}>
         <div className="container">Đang tải lịch thi đấu...</div>
       </div>
     );
@@ -119,55 +66,23 @@ const App = () => {
 
   if (error) {
     return (
-      <div className="app">
+      <div className={`app ${theme}`}>
         <div className="container">Không tải được lịch thi đấu</div>
       </div>
     );
   }
 
   return (
-    <div className="app">
+    <div className={`app ${theme}`}>
       <div className="container">
-        <h1>Giải bóng đá khoa</h1>
+        <div className="header-bar">
+          <h1>Giải bóng đá khoa</h1>
+          <button type="button" onClick={toggleTheme}>
+            {theme === 'light' ? 'Chế độ tối' : 'Chế độ sáng'}
+          </button>
+        </div>
 
-        <section className="section">
-          <h2>Bảng xếp hạng</h2>
-          <table>
-            <thead>
-              <tr>
-                <th>Hạng</th>
-                <th className="text-left">Đội</th>
-                <th>Trận</th>
-                <th>Thắng</th>
-                <th>Hòa</th>
-                <th>Thua</th>
-                <th>BT</th>
-                <th>BB</th>
-                <th>HS</th>
-                <th>Điểm</th>
-              </tr>
-            </thead>
-            <tbody>
-              {standings.map((team, index) => {
-                const isLast = index === standings.length - 1;
-                return (
-                  <tr key={team.id} className={isLast ? 'last-place' : undefined}>
-                    <td>{index + 1}</td>
-                    <td className="text-left">{team.name}</td>
-                    <td>{team.played}</td>
-                    <td>{team.won}</td>
-                    <td>{team.drawn}</td>
-                    <td>{team.lost}</td>
-                    <td>{team.gf}</td>
-                    <td>{team.ga}</td>
-                    <td>{formatDiff(team.diff)}</td>
-                    <td>{team.points}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </section>
+        <StandingsTable standings={standings} />
 
         <section className="section">
           <h2>Thống kê</h2>
@@ -246,10 +161,7 @@ const App = () => {
                       <td>{awayName}</td>
                       <td>{RESULT_LABELS[result]}</td>
                       <td>
-                        <button
-                          type="button"
-                          onClick={() => dispatch({ type: 'REMOVE', payload: match.id })}
-                        >
+                        <button type="button" onClick={() => handleRemove(match)}>
                           Xóa
                         </button>
                       </td>
@@ -261,109 +173,9 @@ const App = () => {
           )}
         </section>
 
-        <section className="section">
-          <h2>Thêm trận đấu</h2>
-          <form onSubmit={handleAddSubmit} noValidate>
-            <div className="form-grid">
-              <div className="form-group">
-                <label htmlFor="add-round">Vòng</label>
-                <select
-                  id="add-round"
-                  value={roundInput}
-                  onChange={(e) => setRoundInput(e.target.value)}
-                >
-                  {ROUNDS.map((r) => (
-                    <option key={r} value={r}>
-                      Vòng {r}
-                    </option>
-                  ))}
-                </select>
-              </div>
+        <AddMatchForm />
 
-              <div className="form-group">
-                <label htmlFor="add-home">Đội nhà</label>
-                <select
-                  id="add-home"
-                  ref={homeSelectRef}
-                  value={homeInput}
-                  onChange={(e) => setHomeInput(e.target.value)}
-                >
-                  <option value="">-- Chọn đội --</option>
-                  {TEAMS.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name}
-                    </option>
-                  ))}
-                </select>
-                {errors.home && (
-                  <span role="alert" className="error-msg">
-                    {errors.home}
-                  </span>
-                )}
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="add-away">Đội khách</label>
-                <select
-                  id="add-away"
-                  value={awayInput}
-                  onChange={(e) => setAwayInput(e.target.value)}
-                >
-                  <option value="">-- Chọn đội --</option>
-                  {TEAMS.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name}
-                    </option>
-                  ))}
-                </select>
-                {errors.away && (
-                  <span role="alert" className="error-msg">
-                    {errors.away}
-                  </span>
-                )}
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="add-home-goals">Bàn thắng đội nhà</label>
-                <input
-                  id="add-home-goals"
-                  type="number"
-                  min="0"
-                  max="20"
-                  value={homeGoalsInput}
-                  onChange={(e) => setHomeGoalsInput(e.target.value)}
-                />
-                {errors.homeGoals && (
-                  <span role="alert" className="error-msg">
-                    {errors.homeGoals}
-                  </span>
-                )}
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="add-away-goals">Bàn thắng đội khách</label>
-                <input
-                  id="add-away-goals"
-                  type="number"
-                  min="0"
-                  max="20"
-                  value={awayGoalsInput}
-                  onChange={(e) => setAwayGoalsInput(e.target.value)}
-                />
-                {errors.awayGoals && (
-                  <span role="alert" className="error-msg">
-                    {errors.awayGoals}
-                  </span>
-                )}
-              </div>
-
-              <div className="form-group">
-                <label>&nbsp;</label>
-                <button type="submit">Thêm trận</button>
-              </div>
-            </div>
-          </form>
-        </section>
+        <GoalPlanner standings={standings} />
       </div>
     </div>
   );
